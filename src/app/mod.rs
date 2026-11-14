@@ -1,6 +1,6 @@
 pub mod config;
 pub mod error;
-pub mod route;
+pub mod router;
 pub mod schema;
 pub mod server;
 pub mod state;

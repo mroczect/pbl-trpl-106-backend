@@ -5,7 +5,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::app::config::Config;
-use crate::app::route;
+use crate::app::router;
 use crate::app::schema;
 use crate::app::state::AppState;
 
@@ -39,7 +39,7 @@ pub async fn run() -> anyhow::Result<()> {
        tracing::info!(count = applied.len(), "migrations applied");
 
     let state = AppState::new(cfg, database);
-    let app = route::build(state);
+    let app = router::build(state);
 
     let listener = tokio::net::TcpListener::bind(listen)
         .await
