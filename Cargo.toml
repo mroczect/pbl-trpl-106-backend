@@ -2,13 +2,21 @@
 name = "pbl-trpl-106-backend"
 version = "0.1.0"
 edition = "2024"
+description = "Backend API untuk aplikasi Galonku (PBL TRPL 106)"
+license = "AGPL-3.0"
+repository = "https://github.com/mroczect/pbl-trpl-106-backend"
+keywords = ["axum", "mysql", "backend", "api"]
+categories = ["web-programming::http-server"]
+
+[lib]
+name = "pbl_trpl_106_backend"
+path = "src/lib.rs"
 
 [dependencies]
 axum = "0.8"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tower-http = { version = "0.7", features = ["trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 dotenvy = "0.15"
@@ -18,6 +26,12 @@ db = { git = "https://github.com/mroczect/pbl-trpl-106-databases", branch = "mai
 argon2 = "0.6.0"
 jsonwebtoken = { version = "12", features = ["aws_lc_rs"] }
 chrono = "0.4.45"
+tower-http = { version = "0.7", features = ["trace", "cors", "set-header", "limit"] }
+tower_governor = "0.8"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
 
 [lints.rust]
 warnings = "deny"
@@ -30,7 +44,7 @@ trivial_casts = "deny"
 trivial_numeric_casts = "deny"
 unused_import_braces = "deny"
 unused_lifetimes = "deny"
-nonstandard_style = "deny"
+nonstandard_style = { level = "deny", priority = -1 }
 deprecated_in_future = "deny"
 macro_use_extern_crate = "deny"
 meta_variable_misuse = "deny"
@@ -49,3 +63,5 @@ module_name_repetitions = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 must_use_candidate = "allow"
+multiple_crate_versions = "allow"
+unused_async_trait_impl = "allow"
