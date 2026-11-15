@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS `_bootstrap` (
+    `id` TINYINT NOT NULL PRIMARY KEY,
+    `created_at` TIMESTAMP NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
