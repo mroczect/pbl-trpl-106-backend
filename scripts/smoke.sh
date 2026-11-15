@@ -70,17 +70,17 @@ fail() {
     log "FAIL $1"
 }
 
-# check <desc> <want> <path> [method] [body] [substr]
 check() {
     _desc=$1; _want=$2; _path=$3
-    _method=${4:-GET}; _body=${5:-}; _sub=${6:-}
+    _method=${4:-GET}; _body=${5:-}; _sub=${6:-}; _token=${7:-}
 
     _url="$BASE$_path"
     _args=(-sS --max-time 10 -w $'\n---HTTP:%{http_code}---TIME:%{time_total}---')
     [ "$_method" != GET ] && _args+=(-X "$_method")
     [ -n "$_body" ] && _args+=(-H 'content-type: application/json' --data-binary "$_body")
+    [ -n "$_token" ] && _args+=(-H "Authorization: Bearer $_token")
 
-    log "REQ $_method $_url body=${_body:-<none>}"
+    log "REQ $_method $_url body=${_body:-<none>} auth=${_token:+yes}"
 
     if ! _out=$(curl "${_args[@]}" "$_url" 2>&1); then
         fail "$_desc (curl error: $_out)"
@@ -111,6 +111,31 @@ check() {
     fi
 
     pass "$_desc ($_code)"
+}
+
+login_token() {
+    _email=$1; _pass=$2
+    _url="$BASE$PREFIX/auth/login"
+    _payload="{\"email\":\"$_email\",\"password\":\"$_pass\"}"
+
+    log "REQ POST $_url (login_token for $_email)"
+
+    _out=$(curl -sS --max-time 10 -X POST "$_url" \
+        -H 'content-type: application/json' \
+        --data-binary "$_payload" 2>&1) || return 0
+
+    log "RES body=$_out"
+
+    case "$_out" in
+        *'"token":"'*)
+            _tok=${_out#*\"token\":\"}
+            _tok=${_tok%%\"*}
+            printf '%s' "$_tok"
+            ;;
+        *)
+            printf ''
+            ;;
+    esac
 }
 
 wait_ready() {
@@ -227,6 +252,44 @@ check "GET /v1/api/hello -> 404"      404 /v1/api/hello
 check "GET wrong hash -> 404"         404 /api/vwronghash-dev/hello
 if [ "$MODE" = dev ]; then
     check "APP_VERSION ignored in dev -> 404" 404 /api/v1.0.0/info
+fi
+echo
+
+echo "== [5] auth"
+_TEST_EMAIL="smoke_$(date +%s)_$$@test.com"
+_TEST_PASS="smoketest123"
+
+check "POST register new customer -> 200" 200 "$PREFIX/auth/register" POST "{\"email\":\"$_TEST_EMAIL\",\"password\":\"$_TEST_PASS\",\"name\":\"Smoke Test\"}"
+check "POST register duplicate -> 409" 409 "$PREFIX/auth/register" POST "{\"email\":\"$_TEST_EMAIL\",\"password\":\"$_TEST_PASS\",\"name\":\"Smoke Test\"}"
+check "POST register short password -> 400" 400 "$PREFIX/auth/register" POST '{"email":"short@smoke.test","password":"12","name":"Short"}'
+
+sleep 1
+
+check "POST login wrong password -> 401" 401 "$PREFIX/auth/login" POST "{\"email\":\"$_TEST_EMAIL\",\"password\":\"wrongpass\"}"
+
+CUSTOMER_TOKEN=$(login_token "$_TEST_EMAIL" "$_TEST_PASS")
+if [ -n "$CUSTOMER_TOKEN" ]; then
+    pass "POST login customer (token acquired)"
+else
+    fail "POST login customer (no token in response)"
+fi
+
+sleep 1
+
+check "GET /me with token -> 200" 200 "$PREFIX/auth/me" GET '' "\"email\":\"$_TEST_EMAIL\"" "$CUSTOMER_TOKEN"
+check "GET /me without token -> 401" 401 "$PREFIX/auth/me" GET
+check "GET /me with fake token -> 401" 401 "$PREFIX/auth/me" GET '' '' 'fake.jwt.token'
+
+sleep 1
+
+ADMIN_TOKEN=$(login_token "admin@galonku.com" "admin123")
+if [ -n "$ADMIN_TOKEN" ]; then
+    pass "POST login admin (token acquired)"
+    check "GET /admin/dashboard as admin -> 200" 200 "$PREFIX/admin/dashboard" GET '' 'Welcome to the Admin Dashboard' "$ADMIN_TOKEN"
+    check "GET /admin/dashboard as customer -> 403" 403 "$PREFIX/admin/dashboard" GET '' '' "$CUSTOMER_TOKEN"
+    check "GET /admin/dashboard without token -> 401" 401 "$PREFIX/admin/dashboard" GET
+else
+    echo "SKIP admin RBAC tests (admin login failed — verify seed 0005)"
 fi
 echo
 
