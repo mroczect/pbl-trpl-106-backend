@@ -50,3 +50,35 @@ nah bednaya giniaja
 
 kalau dev mode url nya pakek git hash teakhir contoh : `/api/vbd20468-dev/hello`
 kalau prod mode, dia pakek yang dari `.env` contoh : `/api/v1.0.0/hello`
+
+---
+
+## End to end tests
+
+nah kalau udah smeuana cara run full nya itu simpenya gini ja
+
+```sh
+$ cargo fmt --all && cargo check
+
+# pastiin ga ada erorr atau apa
+
+# siapin container
+$ podman start pbl-mysql
+
+# Testing
+
+podman exec pbl-mysql mysql -uroot -proot -e "SHOW TABLES" pbl_trpl_106
+
+# kalau udah
+
+$ cargo run
+
+# kalau smeuanay udah lancar run smoke sh
+
+# $ chmod +x scripts/smoke.sh (opsional aja kalau error ngak bsia di run)
+# $ bash scripts/smoke.sh
+# 
+./scripts/smoke.sh
+```
+
+## SELESAI
