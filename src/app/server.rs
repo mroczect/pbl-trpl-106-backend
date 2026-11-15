@@ -43,7 +43,12 @@ pub async fn run() -> anyhow::Result<()> {
         .with_context(|| format!("bind {listen} failed"))?;
 
     tracing::info!(addr = %listen, "listening");
-    axum::serve(listener, app).await.context("serve failed")?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .context("serve failed")?;
 
     Ok(())
 }
