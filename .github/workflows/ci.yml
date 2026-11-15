@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: false
+  JWT_SECRET: "ci_dummy_jwt_secret_at_least_32_chars_long_123"
+  DATABASE_URL: "mysql://root:root@127.0.0.1:3306/pbl_trpl_106"
+
+jobs:
+  quality:
+    name: Quality - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MySQL
+        uses: shogo82148/actions-setup-mysql@v1
+        with:
+          mysql-version: "8.0"
+          root-password: "root"
+          auto-start: true
+
+      - name: Create Database
+        shell: bash
+        run: mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS pbl_trpl_106 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy (Strict)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run Tests
+        run: cargo test --all-targets
+
+      - name: Run Smoke Test
+        shell: bash
+        env:
+          APP_MODE: dev
+        run: |
+          # Jalankan server di background
+          cargo run &
+          SERVER_PID=$!
+          # Tunggu sebentar agar server siap
+          sleep 5
+          # Jalankan skrip smoke
+          bash ./scripts/smoke.sh
+          # Matikan server
+          kill $SERVER_PID || true
