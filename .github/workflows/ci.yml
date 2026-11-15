@@ -20,6 +20,8 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   SQLX_OFFLINE: false
+  APP_MODE: prod
+  APP_VERSION: "1.0.0"
   JWT_SECRET: "ci_dummy_jwt_secret_at_least_32_chars_long_123"
   DATABASE_URL: "mysql://root:root@127.0.0.1:3306/pbl_trpl_106"
 
@@ -67,14 +69,11 @@ jobs:
       - name: Run Smoke Test
         shell: bash
         env:
-          APP_MODE: dev
+          APP_MODE: prod
+          APP_VERSION: "1.0.0"
         run: |
-          # Jalankan server di background
           cargo run &
           SERVER_PID=$!
-          # Tunggu sebentar agar server siap
           sleep 5
-          # Jalankan skrip smoke
           bash ./scripts/smoke.sh
-          # Matikan server
           kill $SERVER_PID || true

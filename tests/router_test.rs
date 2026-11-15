@@ -190,6 +190,7 @@ async fn test_cors() {
 #[tokio::test]
 async fn test_rate_limiting() {
     let app = setup().await;
+    let cfg = Config::from_env().unwrap();
 
     for _ in 0..5 {
         let res = app.clone().oneshot(get_request("/health")).await.unwrap();
@@ -197,5 +198,10 @@ async fn test_rate_limiting() {
     }
 
     let res = app.oneshot(get_request("/health")).await.unwrap();
-    assert_eq!(res.status(), StatusCode::TOO_MANY_REQUESTS);
+
+    if cfg.mode == pbl_trpl_106_backend::app::config::Mode::Prod {
+        assert_eq!(res.status(), StatusCode::TOO_MANY_REQUESTS);
+    } else {
+        assert_eq!(res.status(), StatusCode::OK);
+    }
 }
