@@ -15,6 +15,9 @@ dotenvy = "0.15"
 anyhow = "1"
 thiserror = "2"
 db = { git = "https://github.com/mroczect/pbl-trpl-106-databases", branch = "main", version = "0.1.0" }
+argon2 = "0.6.0"
+jsonwebtoken = { version = "12", features = ["aws_lc_rs"] }
+chrono = "0.4.45"
 
 [lints.rust]
 warnings = "deny"

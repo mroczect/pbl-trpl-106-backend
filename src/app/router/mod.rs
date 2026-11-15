@@ -6,7 +6,7 @@ pub mod info;
 
 use axum::Router;
 use tower_http::trace::TraceLayer;
-
+use crate::app::auth::routes as auth_routes;
 use crate::app::AppState;
 
 pub fn build(state: AppState) -> Router {
@@ -16,7 +16,9 @@ pub fn build(state: AppState) -> Router {
         .merge(hello::routes())
         .merge(echo::routes())
         .merge(info::routes())
-        .merge(error_demo::routes());
+        .merge(error_demo::routes())
+        .nest("/auth", auth_routes::routes());
+
 
     Router::new()
         .nest(&prefix, api)

@@ -27,16 +27,13 @@ pub async fn run() -> anyhow::Result<()> {
     );
 
     tracing::info!("connecting to database");
-       let database = Database::connect(&cfg.database_url)
-           .await
-           .context("connect database")?;
+    let database = Database::connect(&cfg.database_url)
+        .await
+        .context("connect database")?;
 
-       let database = database.with_migrations(schema::migrations());
-       let applied = database
-           .run_pending()
-           .await
-           .context("run migrations")?;
-       tracing::info!(count = applied.len(), "migrations applied");
+    let database = database.with_migrations(schema::migrations());
+    let applied = database.run_pending().await.context("run migrations")?;
+    tracing::info!(count = applied.len(), "migrations applied");
 
     let state = AppState::new(cfg, database);
     let app = router::build(state);

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
@@ -25,6 +25,7 @@ pub struct Config {
     pub version: String,
     pub api_prefix: String,
     pub database_url: String,
+    pub jwt_secret: String,
 }
 
 impl Config {
@@ -45,14 +46,22 @@ impl Config {
 
         let version = match mode {
             Mode::Dev => format!("{}-dev", env!("GIT_HASH")),
-            Mode::Prod => std::env::var("APP_VERSION")
-                .context("APP_VERSION required when APP_MODE=prod")?,
+            Mode::Prod => {
+                std::env::var("APP_VERSION").context("APP_VERSION required when APP_MODE=prod")?
+            }
         };
 
         let api_prefix = format!("v{version}");
 
-        let database_url = std::env::var("DATABASE_URL")
-            .context("DATABASE_URL required")?;
+        let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL required")?;
+
+        let jwt_secret = std::env::var("JWT_SECRET").context("JWT_SECRET required")?;
+        if jwt_secret.len() < 32 {
+            bail!(
+                "JWT_SECRET must be at least 32 characters (got {})",
+                jwt_secret.len()
+            );
+        }
 
         Ok(Self {
             listen: SocketAddr::from(([0, 0, 0, 0], port)),
@@ -60,6 +69,7 @@ impl Config {
             version,
             api_prefix,
             database_url,
+            jwt_secret,
         })
     }
 

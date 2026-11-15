@@ -1,9 +1,9 @@
+use axum::Router;
 use axum::extract::Path;
 use axum::routing::get;
-use axum::Router;
 
-use crate::app::error::AppError;
 use crate::app::AppState;
+use crate::app::error::AppError;
 
 pub fn routes() -> Router<AppState> {
     Router::new().route("/error/{kind}", get(demo))
