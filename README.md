@@ -4,7 +4,6 @@ Full backend implementation in Rust for the Galonku application (Water Depot Man
 
 ---
 
-
 ## Prerequisites
 
 - [Rust](https://rustup.rs/)
@@ -22,13 +21,14 @@ $ cp .env.example .env
 
 ```env
 # ini setrah klen aja atur atur aja sukak klen
-# 
+#
 PORT=3000
 APP_MODE=dev
 # APP_MODE=prod
 # APP_VERSION=1.0.0
 DATABASE_URL=mysql://root:root@127.0.0.1:3307/pbl_trpl_106
 ```
+
 nah di `APP_MODE` ini harus di definiskan ya klen bisa tengok aja di `src/app/config.rs`
 
 nnti isinya ad akayak gini
@@ -46,7 +46,6 @@ impl Mode {
 ```
 
 nah bednaya giniaja
-
 
 kalau dev mode url nya pakek git hash teakhir contoh : `/api/vbd20468-dev/hello`
 kalau prod mode, dia pakek yang dari `.env` contoh : `/api/v1.0.0/hello`
@@ -77,7 +76,7 @@ $ cargo run
 
 # $ chmod +x scripts/smoke.sh (opsional aja kalau error ngak bsia di run)
 # $ bash scripts/smoke.sh
-# 
+#
 ./scripts/smoke.sh
 ```
 
