@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - '**.md'
-      - 'LICENSE'
+      - "**.md"
+      - "LICENSE"
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -19,15 +19,16 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  SQLX_OFFLINE: false
-  APP_MODE: prod
-  APP_VERSION: "1.0.0"
+  RUST_BACKTRACE: full
+  RUST_LOG: "debug,pbl_trpl_106_backend=trace,tower_http=trace,sqlx=info"
+  SQLX_OFFLINE: "false"
   JWT_SECRET: "ci_dummy_jwt_secret_at_least_32_chars_long_123"
   DATABASE_URL: "mysql://root:root@127.0.0.1:3306/pbl_trpl_106"
+  APP_VERSION: "1.0.0"
 
 jobs:
   quality:
-    name: Quality - ${{ matrix.os }}
+    name: Quality / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -38,6 +39,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Print runner info
+        shell: bash
+        run: |
+          set -x
+          uname -a || true
+          rustc --version || true
+          cargo --version || true
+          echo "OS=${{ matrix.os }}"
+          echo "REF=${{ github.ref }}"
+          echo "SHA=${{ github.sha }}"
+
       - name: Setup MySQL
         uses: shogo82148/actions-setup-mysql@v1
         with:
@@ -45,35 +57,105 @@ jobs:
           root-password: "root"
           auto-start: true
 
-      - name: Create Database
+      - name: Verify MySQL is reachable
         shell: bash
-        run: mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS pbl_trpl_106 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+        run: |
+          set -x
+          mysql -uroot -proot -e "SELECT VERSION();"
+          mysql -uroot -proot -e "SHOW DATABASES;"
+
+      - name: Create database
+        shell: bash
+        run: |
+          set -x
+          mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS pbl_trpl_106 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          mysql -uroot -proot -e "SHOW DATABASES;" | grep pbl_trpl_106
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - name: Rust Cache
+      - name: Print toolchain info
+        shell: bash
+        run: |
+          set -x
+          rustc --version
+          cargo --version
+          rustfmt --version
+          cargo clippy --version
+
+      - name: Rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}-quality
 
-      - name: Check Formatting
-        run: cargo fmt --all -- --check
+      - name: Check formatting
+        shell: bash
+        run: |
+          set -x
+          cargo fmt --all -- --check
 
-      - name: Run Clippy (Strict)
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run clippy
+        shell: bash
+        run: |
+          set -x
+          cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Run Tests
-        run: cargo test --all-targets
-
-      - name: Run Smoke Test
+      - name: Run tests (prod mode, rate limiter enabled)
         shell: bash
         env:
           APP_MODE: prod
-          APP_VERSION: "1.0.0"
         run: |
-          cargo run &
-          SERVER_PID=$!
-          sleep 5
+          set -x
+          cargo test --all-targets -- --nocapture --test-threads=1
+
+      - name: Start server (dev mode, no rate limiter)
+        shell: bash
+        env:
+          APP_MODE: dev
+        run: |
+          set -x
+          cargo run > server.log 2>&1 &
+          echo $! > server.pid
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://127.0.0.1:3002/health; then
+              echo "server up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "server did not start in time"
+          cat server.log
+          exit 1
+
+      - name: Dump server log (pre-smoke)
+        shell: bash
+        run: |
+          set -x
+          cat server.log || true
+
+      - name: Run smoke test
+        shell: bash
+        env:
+          BASE: "http://127.0.0.1:3002"
+          V: "1"
+        run: |
+          set -x
           bash ./scripts/smoke.sh
-          kill $SERVER_PID || true
+
+      - name: Dump server log (post-smoke)
+        if: always()
+        shell: bash
+        run: |
+          set -x
+          cat server.log || true
+
+      - name: Stop server
+        if: always()
+        shell: bash
+        run: |
+          set -x
+          if [ -f server.pid ]; then
+            kill "$(cat server.pid)" 2>/dev/null || true
+          fi
