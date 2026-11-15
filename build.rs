@@ -16,12 +16,11 @@ fn main() {
         })
         .filter(|s| !s.is_empty());
 
-    let hash = match hash {
-        Some(h) => h,
-        None => {
-            println!("cargo:warning=git hash unavailable, using 'unknown'");
-            "unknown".to_string()
-        }
+    let hash = if let Some(h) = hash {
+        h
+    } else {
+        println!("cargo:warning=git hash unavailable, using 'unknown'");
+        "unknown".to_string()
     };
 
     println!("cargo:rustc-env=GIT_HASH={hash}");
